@@ -77,7 +77,7 @@ class ReportRequest(BaseModel):
 
 
 class ReportSection(BaseModel):
-    key: Literal["header", "table", "commentary"]
+    key: Literal["header", "table", "analysis", "commentary"]
     markdown: str
     source: Literal["computed", "model", "fallback"]
 

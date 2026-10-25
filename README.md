@@ -38,7 +38,12 @@ src/
   training/dataset.py           token cache and shifted (X, Y) windows
   training/trainer.py           Trainer, LR schedule, optimizer, device detection
   api/server.py                 FastAPI app
+  api/routers/reports.py        /api/v1/reports endpoints
   reports/formatting.py         financial number formatting shared by corpus and report prompts
+  reports/schemas.py            typed report request/response contracts
+  reports/templates.py          metrics -> canonical prompt, table and fallback commentary
+  reports/verify.py             figure extraction and verification
+  reports/engine.py             prompt -> generate -> verify -> Markdown report
 tests/                          pytest suite
 ```
 
@@ -67,7 +72,8 @@ curl -s localhost:8000/generate -H 'content-type: application/json' -d '{
 
 | Endpoint | Description |
 |---|---|
-| `GET /health` | device, parameter count and model config |
+| `GET /health` | device, parameter count, model config and checkpoint SHA-256 |
+| `POST /api/v1/reports/generate` | typed cash-flow metrics (USD millions) -> Markdown report: computed table and analysis, plus model commentary kept only if every figure in it is verified (deterministic fallback otherwise) |
 | `POST /generate` | `prompt` (1-4000 chars), `max_new_tokens` (1-512), `min_new_tokens` (EOS suppressed until reached; set equal to `max_new_tokens` to force full length), `temperature` (0-2, 0 = greedy), `top_k` (>=1), `top_p` (0-1] |
 
 Generation stops early only when the model samples `<|endoftext|>`. The model was trained on whole documents, so
