@@ -106,6 +106,38 @@ computed table and analysis are locked and only the commentary is editable (a ma
 Server settings come from environment variables: `STAR_CHECKPOINT` (default `checkpoints/best.pt`),
 `STAR_TOKENIZER` (defaults to the path recorded in the checkpoint) and `STAR_DEVICE`.
 
+## On-premise deployment
+
+`deploy/` packages the dashboard, API, model and tokenizer into one image (CPU PyTorch, ~1.2 GB) behind a Caddy
+reverse proxy with TLS and basic auth.
+
+```bash
+cp deploy/.env.example deploy/.env      # set STAR_USER, STAR_PASSWORD_HASH, STAR_HOSTS
+docker compose -f deploy/docker-compose.yml up -d --build
+deploy/offline-check.sh                 # proves the model server has no route to the internet
+```
+
+Air-gapped delivery: build once with internet access, then ship the images as a file.
+
+```bash
+docker save star-app:0.1.0 caddy:2.8.4-alpine | gzip > star-0.1.0.tar.gz     # on the build machine
+docker load < star-0.1.0.tar.gz && docker compose -f deploy/docker-compose.yml up -d   # on the client server
+```
+
+Security model:
+
+- **No egress.** `app` is attached only to a Compose network with `internal: true`, so it has no route out of the
+  host. Only `proxy` publishes a port. `offline-check.sh` verifies that DNS, raw TCP and HTTPS from `app` fail.
+- **No external assets.** Swagger/ReDoc (which load from a CDN) are disabled with `STAR_DOCS=0`, the dashboard uses
+  system fonts, PDF rendering refuses every URL, and Caddy runs with the admin API off and never contacts ACME.
+- **Hardened container.** Non-root user, read-only filesystem, all capabilities dropped, `no-new-privileges`.
+- **Proxy.** TLS from Caddy's internal CA (or the client's certificate), basic auth with a bcrypt hash, 2 MB request
+  limit, CSP `default-src 'self'`, HSTS, `nosniff`, `frame-ancestors 'none'`.
+- **Traceability.** Every report carries the SHA-256 of the checkpoint that produced it, also exposed by `/health`.
+
+The checkpoint is baked into the image at build time (`--build-arg CHECKPOINT=checkpoints/<file>.pt`, default
+`checkpoints/best_cloud.pt`). Image layers are content-addressed, so `docker load` already verifies their integrity.
+
 ## Data
 
 `generate_business_corpus.py` produces five document types: income statements, cash-flow analyses, board minutes,

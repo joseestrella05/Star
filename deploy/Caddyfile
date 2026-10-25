@@ -1,0 +1,31 @@
+{
+	admin off
+	# Never contact ACME/Let's Encrypt: certificates come from Caddy's local CA or the client's own.
+	skip_install_trust
+}
+
+# Names/IPs clients use to reach the server, e.g. STAR_HOSTS="star.empresa.local, 10.0.0.20".
+{$STAR_HOSTS:localhost} {
+	# Certificate from Caddy's internal CA. To use the client's certificate instead:
+	#   tls /data/certs/star.crt /data/certs/star.key
+	tls internal
+
+	basic_auth {
+		{$STAR_USER} {$STAR_PASSWORD_HASH}
+	}
+
+	request_body {
+		max_size 2MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"
+		-Server
+	}
+
+	reverse_proxy app:8000
+}

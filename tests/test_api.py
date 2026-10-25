@@ -53,6 +53,14 @@ def test_serves_built_dashboard(tmp_path, monkeypatch):
         assert c.get("/health").json()["status"] == "ok"  # API routes win over the static mount
 
 
+def test_docs_can_be_disabled(monkeypatch):
+    with client() as c:
+        assert c.get("/docs").status_code == 200
+    monkeypatch.setenv("STAR_DOCS", "0")
+    with client() as c:
+        assert c.get("/docs").status_code == 404 and c.get("/redoc").status_code == 404
+
+
 def test_load_model_roundtrip(tmp_path):
     trainer = Trainer(MODEL, None, None, TrainConfig(out_dir=str(tmp_path)), device="cpu",
                       extra_state={"tokenizer": "tok.json"})

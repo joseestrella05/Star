@@ -1,0 +1,38 @@
+# One-command on-premise deployment:  docker compose -f deploy/docker-compose.yml up -d
+# `app` sits on an internal-only network with no route outside the host; only `proxy` publishes a port.
+name: star
+
+services:
+  app:
+    image: star-app:${STAR_VERSION:-0.1.0}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    networks: [internal]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+
+  proxy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["${STAR_PORT:-443}:443"]
+    environment:
+      STAR_USER: ${STAR_USER:?set STAR_USER in deploy/.env}
+      STAR_PASSWORD_HASH: ${STAR_PASSWORD_HASH:?set STAR_PASSWORD_HASH in deploy/.env}
+      STAR_HOSTS: ${STAR_HOSTS:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    networks: [internal, edge]
+
+networks:
+  internal:
+    internal: true  # no egress: the model server cannot reach the internet
+  edge: {}
+
+volumes:
+  caddy_data: {}

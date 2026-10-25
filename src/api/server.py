@@ -98,7 +98,10 @@ def create_app(model=None, tokenizer=None, device="cpu", checkpoint_sha256="unkn
                 os.environ.get("STAR_TOKENIZER") or tok_path or "checkpoints/tokenizer.json")
         yield
 
-    app = FastAPI(title="Star API", version="0.1.0", lifespan=lifespan)
+    # Swagger UI and ReDoc load their assets from a CDN; STAR_DOCS=0 turns them off for offline deployments.
+    docs = os.environ.get("STAR_DOCS", "1") != "0"
+    app = FastAPI(title="Star API", version="0.1.0", lifespan=lifespan,
+                  docs_url="/docs" if docs else None, redoc_url="/redoc" if docs else None)
     app.state.star = state
     app.include_router(reports.router)
 

@@ -1,0 +1,13 @@
+# Allow-list: only what the image needs reaches the build context.
+*
+!requirements.txt
+!src/
+!web/package.json
+!web/package-lock.json
+!web/index.html
+!web/vite.config.ts
+!web/tsconfig.json
+!web/src/
+!checkpoints/tokenizer.json
+!checkpoints/*.pt
+**/__pycache__
