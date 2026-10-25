@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* System fonts only: the app must render with no network access. */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --color-ink: #111827;
+  --color-muted: #6b7280;
+  --color-line: #e5e7eb;
+  --color-brand: #0f3d5e;
+}
+
+body {
+  @apply bg-slate-50 text-ink antialiased;
+}

@@ -89,6 +89,20 @@ Generation stops early only when the model samples `<|endoftext|>`. The model wa
 an out-of-domain prompt, or one ending in a trailing space, often makes it predict end-of-document within a few
 tokens. Use in-domain prompts or `min_new_tokens`.
 
+### Dashboard
+
+`web/` is a Vite + React + Tailwind app (system fonts, no external assets). Once built, FastAPI serves it at `/`
+from `web/dist` (override with `STAR_WEB_DIR`), so production runs a single process with no Node runtime.
+
+```bash
+cd web && npm ci && npm run build      # then open http://localhost:8000
+npm run dev                            # hot reload on :5173, proxies /api and /health to :8000
+```
+
+Flow: metrics form (or CSV/XLSX upload from the template) with live ratio preview -> generate -> preview where the
+computed table and analysis are locked and only the commentary is editable (a manual edit is flagged as unverified)
+-> PDF or Markdown download.
+
 Server settings come from environment variables: `STAR_CHECKPOINT` (default `checkpoints/best.pt`),
 `STAR_TOKENIZER` (defaults to the path recorded in the checkpoint) and `STAR_DEVICE`.
 

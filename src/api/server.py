@@ -6,10 +6,12 @@ import hashlib
 import os
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
 import torch
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 
 from src.api.routers import reports
@@ -111,6 +113,11 @@ def create_app(model=None, tokenizer=None, device="cpu", checkpoint_sha256="unkn
         text, n_prompt, n_new = complete(req.prompt, req.max_new_tokens, req.temperature, top_k=req.top_k,
                                          top_p=req.top_p, min_new_tokens=req.min_new_tokens)
         return GenerateResponse(completion=text, prompt_tokens=n_prompt, completion_tokens=n_new)
+
+    # Built dashboard (web/dist), mounted last so API routes take precedence.
+    web_dir = Path(os.environ.get("STAR_WEB_DIR", "web/dist"))
+    if (web_dir / "index.html").exists():
+        app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
 
     return app
 

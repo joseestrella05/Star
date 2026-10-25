@@ -45,6 +45,14 @@ def test_min_new_tokens_forces_full_length():
     assert body["completion_tokens"] == 20
 
 
+def test_serves_built_dashboard(tmp_path, monkeypatch):
+    (tmp_path / "index.html").write_text("<h1>Star</h1>")
+    monkeypatch.setenv("STAR_WEB_DIR", str(tmp_path))
+    with TestClient(create_app(MODEL, TOK)) as c:
+        assert c.get("/").text == "<h1>Star</h1>"
+        assert c.get("/health").json()["status"] == "ok"  # API routes win over the static mount
+
+
 def test_load_model_roundtrip(tmp_path):
     trainer = Trainer(MODEL, None, None, TrainConfig(out_dir=str(tmp_path)), device="cpu",
                       extra_state={"tokenizer": "tok.json"})
