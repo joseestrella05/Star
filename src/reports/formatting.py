@@ -2,9 +2,13 @@
 
 Prompts must match the corpus format exactly, so both import from here.
 """
+from decimal import ROUND_HALF_UP, Decimal
 
 
 def num(x, lang, d=1):
+    if isinstance(x, Decimal):
+        # format() on Decimal rounds half-even (123.45 -> 123.4); financial reports expect half-up.
+        x = x.quantize(Decimal(1).scaleb(-d), rounding=ROUND_HALF_UP)
     s = f"{x:,.{d}f}"
     return s.translate(str.maketrans(",.", ".,")) if lang == "es" else s
 

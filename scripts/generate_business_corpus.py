@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.reports.formatting import money, num, pct  # noqa: E402
+from src.reports.templates import CASH_FLOW  # noqa: E402
 
 EOT = "<|endoftext|>"
 
@@ -127,36 +128,9 @@ def income_statement(rng, lang):
 
 def cash_flow(rng, lang):
     f, co, per = financials(rng), rng.choice(COMPANIES), period(rng)
-    c = ctx(f, lang, co, per)
-    if lang == "en":
-        body = [
-            "{co} - Cash Flow Analysis, {per}",
-            "",
-            "Operating cash flow was {ocf}, driven by EBITDA of {ebitda} and a working capital change of {dwc}.",
-            "CAPEX totaled {capex} ({capex_pct} of revenue), resulting in free cash flow (FCF) of {fcf}.",
-            "FCF conversion, measured as FCF over EBITDA, was {conv}.",
-            "The company closed the period with cash of {cash} and net debt of {net_debt}, a leverage ratio of {lev} net debt/EBITDA.",
-            rng.choice([
-                "Liquidity remains adequate to fund the investment plan without additional borrowing.",
-                "The treasury team will prioritize deleveraging before considering share buybacks.",
-                "Management expects working capital to normalize over the next two quarters.",
-            ]),
-        ]
-    else:
-        body = [
-            "{co} - Análisis de Flujo de Caja, {per}",
-            "",
-            "El flujo de caja operativo fue de {ocf}, impulsado por un EBITDA de {ebitda} y una variación de capital de trabajo de {dwc}.",
-            "El CAPEX sumó {capex} ({capex_pct} de los ingresos), con un flujo de caja libre (FCF) de {fcf}.",
-            "La conversión de FCF, medida como FCF sobre EBITDA, fue de {conv}.",
-            "La empresa cerró el periodo con caja de {cash} y deuda neta de {net_debt}, un apalancamiento de {lev} deuda neta/EBITDA.",
-            rng.choice([
-                "La liquidez es suficiente para financiar el plan de inversión sin nueva deuda.",
-                "Tesorería priorizará el desapalancamiento antes de evaluar recompras de acciones.",
-                "La dirección espera que el capital de trabajo se normalice en los próximos dos trimestres.",
-            ]),
-        ]
-    return "\n".join(body).format(**c)
+    t = CASH_FLOW[lang]
+    body = [t["title"], "", *t["lines"], rng.choice(t["closings"])]
+    return "\n".join(body).format(**ctx(f, lang, co, per))
 
 
 def board_minutes(rng, lang):
