@@ -45,6 +45,7 @@ src/
   reports/verify.py             figure extraction and verification
   reports/engine.py             prompt -> generate -> verify -> Markdown report
   reports/export.py             Markdown -> HTML -> PDF (offline)
+  reports/ingest.py             CSV/XLSX template parsing and validation
 tests/                          pytest suite
 ```
 
@@ -75,6 +76,8 @@ curl -s localhost:8000/generate -H 'content-type: application/json' -d '{
 |---|---|
 | `GET /health` | device, parameter count, model config and checkpoint SHA-256 |
 | `POST /api/v1/reports/generate` | typed cash-flow metrics (USD millions) -> Markdown report: computed table and analysis, plus model commentary kept only if every figure in it is verified (deterministic fallback otherwise) |
+| `GET /api/v1/reports/template.csv` | fixed metrics template (`field,value,description`), opens in Excel |
+| `POST /api/v1/reports/ingest` | raw CSV or XLSX body filled from the template -> validated `fields` + `metrics` (1 MB max; accepts `;` and `,` CSVs and `1.234,5` / `1,234.5` numbers; errors listed per row) |
 | `POST /api/v1/reports/export` | `{markdown, format: "md" \| "pdf", footer}` -> file download; takes the user-edited text, escapes raw HTML and renders the PDF with all network/file fetching disabled |
 
 PDF export uses WeasyPrint, which needs the system Pango library (`brew install pango` on macOS,

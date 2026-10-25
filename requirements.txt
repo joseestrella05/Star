@@ -8,3 +8,4 @@ pytest>=8.0
 httpx>=0.27
 markdown>=3.5
 weasyprint>=62
+openpyxl>=3.1
