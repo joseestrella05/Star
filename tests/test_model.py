@@ -54,3 +54,6 @@ def test_generate_sampling_and_eos():
     greedy_next = model.generate(torch.zeros(1, 1, dtype=torch.long), 1, temperature=0)[0, 1].item()
     stopped = model.generate(torch.zeros(1, 1, dtype=torch.long), 10, temperature=0, eos_id=greedy_next)
     assert stopped.shape == (1, 2)
+    forced = model.generate(torch.zeros(1, 1, dtype=torch.long), 10, temperature=0, eos_id=greedy_next,
+                            min_new_tokens=10)
+    assert forced.shape == (1, 11) and greedy_next not in forced[0, 1:].tolist()

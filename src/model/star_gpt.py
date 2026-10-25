@@ -92,11 +92,18 @@ class StarGPT(nn.Module):
         return logits, loss
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None, top_p=None, eos_id=None):
-        """Autoregressive sampling. temperature=0 means greedy decoding."""
-        for _ in range(max_new_tokens):
+    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None, top_p=None, eos_id=None,
+                 min_new_tokens=0):
+        """Autoregressive sampling. temperature=0 means greedy decoding.
+
+        Stops early only when every sequence samples `eos_id`; EOS is masked out for the
+        first `min_new_tokens` steps (min_new_tokens=max_new_tokens forces the full length).
+        """
+        for step in range(max_new_tokens):
             logits, _ = self(idx[:, -self.config.block_size:])
             logits = logits[:, -1, :]
+            if eos_id is not None and step < min_new_tokens:
+                logits[:, eos_id] = float("-inf")
             if temperature == 0:
                 next_id = logits.argmax(dim=-1, keepdim=True)
             else:

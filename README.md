@@ -67,7 +67,11 @@ curl -s localhost:8000/generate -H 'content-type: application/json' -d '{
 | Endpoint | Description |
 |---|---|
 | `GET /health` | device, parameter count and model config |
-| `POST /generate` | `prompt` (1-4000 chars), `max_new_tokens` (1-512), `temperature` (0-2, 0 = greedy), `top_k` (>=1), `top_p` (0-1] |
+| `POST /generate` | `prompt` (1-4000 chars), `max_new_tokens` (1-512), `min_new_tokens` (EOS suppressed until reached; set equal to `max_new_tokens` to force full length), `temperature` (0-2, 0 = greedy), `top_k` (>=1), `top_p` (0-1] |
+
+Generation stops early only when the model samples `<|endoftext|>`. The model was trained on whole documents, so
+an out-of-domain prompt, or one ending in a trailing space, often makes it predict end-of-document within a few
+tokens. Use in-domain prompts or `min_new_tokens`.
 
 Server settings come from environment variables: `STAR_CHECKPOINT` (default `checkpoints/best.pt`),
 `STAR_TOKENIZER` (defaults to the path recorded in the checkpoint) and `STAR_DEVICE`.

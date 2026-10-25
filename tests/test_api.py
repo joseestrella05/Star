@@ -36,6 +36,13 @@ def test_validation():
         assert c.post("/generate", json={"prompt": "x", "temperature": 5}).status_code == 422
         assert c.post("/generate", json={"prompt": ""}).status_code == 422
         assert c.post("/generate", json={"prompt": "x", "max_new_tokens": 10_000}).status_code == 422
+        assert c.post("/generate", json={"prompt": "x", "max_new_tokens": 5, "min_new_tokens": 6}).status_code == 422
+
+
+def test_min_new_tokens_forces_full_length():
+    with client() as c:
+        body = c.post("/generate", json={"prompt": "string", "max_new_tokens": 20, "min_new_tokens": 20}).json()
+    assert body["completion_tokens"] == 20
 
 
 def test_load_model_roundtrip(tmp_path):
