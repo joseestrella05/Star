@@ -44,6 +44,7 @@ src/
   reports/templates.py          metrics -> canonical prompt, table and fallback commentary
   reports/verify.py             figure extraction and verification
   reports/engine.py             prompt -> generate -> verify -> Markdown report
+  reports/export.py             Markdown -> HTML -> PDF (offline)
 tests/                          pytest suite
 ```
 
@@ -74,6 +75,11 @@ curl -s localhost:8000/generate -H 'content-type: application/json' -d '{
 |---|---|
 | `GET /health` | device, parameter count, model config and checkpoint SHA-256 |
 | `POST /api/v1/reports/generate` | typed cash-flow metrics (USD millions) -> Markdown report: computed table and analysis, plus model commentary kept only if every figure in it is verified (deterministic fallback otherwise) |
+| `POST /api/v1/reports/export` | `{markdown, format: "md" \| "pdf", footer}` -> file download; takes the user-edited text, escapes raw HTML and renders the PDF with all network/file fetching disabled |
+
+PDF export uses WeasyPrint, which needs the system Pango library (`brew install pango` on macOS,
+`apt install libpango-1.0-0 libpangoft2-1.0-0` on Debian/Ubuntu). On macOS run the server with
+`DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib`. Without Pango, PDF export returns 503 and everything else works.
 | `POST /generate` | `prompt` (1-4000 chars), `max_new_tokens` (1-512), `min_new_tokens` (EOS suppressed until reached; set equal to `max_new_tokens` to force full length), `temperature` (0-2, 0 = greedy), `top_k` (>=1), `top_p` (0-1] |
 
 Generation stops early only when the model samples `<|endoftext|>`. The model was trained on whole documents, so

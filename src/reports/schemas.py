@@ -76,6 +76,14 @@ class ReportRequest(BaseModel):
     generation: GenerationOptions = Field(default_factory=GenerationOptions)
 
 
+class ExportRequest(BaseModel):
+    model_config = Strict
+
+    markdown: str = Field(min_length=1, max_length=50_000, description="report text, possibly edited by the user")
+    format: Literal["md", "pdf"] = "pdf"
+    footer: str = Field("", max_length=200, description="e.g. report id, checkpoint hash and date")
+
+
 class ReportSection(BaseModel):
     key: Literal["header", "table", "analysis", "commentary"]
     markdown: str
