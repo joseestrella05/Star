@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environments
+.venv/
+venv/
+.env
+
+# Model artifacts
+*.pt
+*.bin
+checkpoints/
+
+# Data
+data/*.txt
+
+# Tooling / OS
+.claude/
+.vscode/
+.idea/
+.DS_Store
+CLAUDE.md
