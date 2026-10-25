@@ -38,6 +38,7 @@ src/
   training/dataset.py           token cache and shifted (X, Y) windows
   training/trainer.py           Trainer, LR schedule, optimizer, device detection
   api/server.py                 FastAPI app
+  reports/formatting.py         financial number formatting shared by corpus and report prompts
 tests/                          pytest suite
 ```
 

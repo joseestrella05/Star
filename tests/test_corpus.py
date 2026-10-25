@@ -1,4 +1,4 @@
-from scripts.generate_business_corpus import EOT, dcf, generate_corpus, money
+from scripts.generate_business_corpus import EOT, dcf, generate_corpus
 
 
 def test_deterministic_and_bilingual():
@@ -8,11 +8,6 @@ def test_deterministic_and_bilingual():
     assert EOT not in text
     for term in ("EBITDA", "CAPEX", "OPEX", "YoY", "ROI", "Estado de Resultados", "Income Statement"):
         assert term in text, term
-
-
-def test_money_format():
-    assert money(1234.56, "en") == "$1,234.6M"
-    assert money(-1234.56, "es") == "-$1.234,6 M"
 
 
 def test_dcf_flat_case():

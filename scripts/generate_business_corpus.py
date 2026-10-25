@@ -6,8 +6,12 @@ figures in statements, commentary, KPIs and projections agree with each other.
 """
 import argparse
 import random
+import sys
 from pathlib import Path
 from types import SimpleNamespace
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.reports.formatting import money, num, pct  # noqa: E402
 
 EOT = "<|endoftext|>"
 
@@ -34,21 +38,6 @@ MONTHS = {
            "septiembre", "octubre", "noviembre", "diciembre"],
 }
 TARGETS = ["Brightline Labs", "Meridian Supply", "Kappa Payments", "Altiplano Data", "Riverstone Clinics"]
-
-
-def num(x, lang, d=1):
-    s = f"{x:,.{d}f}"
-    return s.translate(str.maketrans(",.", ".,")) if lang == "es" else s
-
-
-def money(x, lang):
-    """Amounts are in USD millions."""
-    sign = "-" if x < 0 else ""
-    return f"{sign}${num(abs(x), lang)}M" if lang == "en" else f"{sign}${num(abs(x), lang)} M"
-
-
-def pct(x, lang):
-    return f"{num(x, lang)}%"
 
 
 def financials(rng):
