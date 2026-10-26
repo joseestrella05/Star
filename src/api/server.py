@@ -65,7 +65,9 @@ def sha256_file(path):
 
 def create_app(model=None, tokenizer=None, device="cpu", checkpoint_sha256="unknown"):
     """Build the app; model/tokenizer are loaded from env vars at startup when not injected."""
-    state = {"model": model, "tokenizer": tokenizer, "device": device, "checkpoint_sha256": checkpoint_sha256}
+    state = {"model": model, "tokenizer": tokenizer, "device": device, "checkpoint_sha256": checkpoint_sha256,
+             # Display-only: amounts are currency-free; the core banking system defines the currency.
+             "currency_label": os.environ.get("STAR_CURRENCY_LABEL", "")[:12]}
     lock = threading.Lock()  # one generation at a time on the shared device
 
     def complete(prompt, max_new_tokens, temperature, seed=None, top_k=None, top_p=None, min_new_tokens=0):
@@ -109,7 +111,8 @@ def create_app(model=None, tokenizer=None, device="cpu", checkpoint_sha256="unkn
     def health():
         m = state["model"]
         return {"status": "ok", "device": state["device"], "params": m.num_params(non_embedding=False),
-                "config": vars(m.config), "checkpoint_sha256": state["checkpoint_sha256"]}
+                "config": vars(m.config), "checkpoint_sha256": state["checkpoint_sha256"],
+                "currency_label": state["currency_label"]}
 
     @app.post("/generate", response_model=GenerateResponse)
     def generate(req: GenerateRequest):  # sync def: FastAPI runs it in a worker thread

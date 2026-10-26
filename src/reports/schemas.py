@@ -18,7 +18,7 @@ def _amount(**kwargs):
 
 
 class CashFlowMetrics(BaseModel):
-    """Amounts in USD millions: the only currency and unit the current model was trained on."""
+    """Amounts in thousands of the institution's currency (set by the core banking system, not here)."""
     model_config = Strict
 
     revenue: Decimal = _amount(gt=0)

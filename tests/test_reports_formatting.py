@@ -4,8 +4,9 @@ from src.reports.formatting import money, num, pct
 
 
 def test_money_format():
-    assert money(1234.56, "en") == "$1,234.6M"
-    assert money(-1234.56, "es") == "-$1.234,6 M"
+    # Thousands, no currency symbol, no decimals.
+    assert money(1234567.56, "en") == "1,234,568"
+    assert money(-1234567.56, "es") == "-1.234.568"
 
 
 def test_num_and_pct():
@@ -15,5 +16,5 @@ def test_num_and_pct():
 
 def test_decimal_rounds_half_up():
     assert num(Decimal("123.45"), "en") == "123.5"
-    assert money(Decimal("-0.05"), "es") == "-$0,1 M"
+    assert money(Decimal("842300.5"), "es") == "842.301"
     assert num(Decimal("2.675"), "en", 2) == "2.68"

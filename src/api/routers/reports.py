@@ -13,7 +13,7 @@ def generate(req: ReportRequest, request: Request):  # sync def: runs in a worke
     star = request.app.state.star
     info = ModelInfo(checkpoint_sha256=star["checkpoint_sha256"],
                      params=star["model"].num_params(non_embedding=False))
-    return generate_report(req, star["complete"], info)
+    return generate_report(req, star["complete"], info, star["currency_label"])
 
 
 @router.get("/template.csv", response_class=Response)

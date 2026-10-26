@@ -91,7 +91,7 @@ export default function App() {
 
       <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-2">
         <div className="space-y-5">
-          <MetricsForm form={form} onChange={setForm} errors={fieldErrors} />
+          <MetricsForm form={form} onChange={setForm} errors={fieldErrors} currencyLabel={health?.currency_label ?? ""} />
           <Button className="w-full" onClick={generate} disabled={busy}>
             {busy ? "Generando informe…" : "Generar informe"}
           </Button>

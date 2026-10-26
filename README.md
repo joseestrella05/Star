@@ -11,7 +11,7 @@ corpus generator ──> BPE tokenizer ──> token stream ──> StarGPT trai
 
 ## Highlights
 
-- **Byte-level BPE from scratch** (pure Python) with domain-aware pre-tokenization: figures like `-$1,234.5M`,
+- **Byte-level BPE from scratch** (pure Python) with domain-aware pre-tokenization: figures like `-1,234,568`,
   `12,3%`, `7.9x` and terms like `EBITDA`, `CAPEX`, `OPEX`, `ROI`, `YoY`, `Q1-Q4` are never split across chunks.
   Each corporate term ends up as a single token. Trains on 6.8M characters in ~4 s through incremental pair counting.
 - **GPT-style model**: learned token and positional embeddings, Pre-LayerNorm blocks, multi-head causal
@@ -75,7 +75,7 @@ curl -s localhost:8000/generate -H 'content-type: application/json' -d '{
 | Endpoint | Description |
 |---|---|
 | `GET /health` | device, parameter count, model config and checkpoint SHA-256 |
-| `POST /api/v1/reports/generate` | typed cash-flow metrics (USD millions) -> Markdown report: computed table and analysis, plus model commentary kept only if every figure in it is verified (deterministic fallback otherwise) |
+| `POST /api/v1/reports/generate` | typed cash-flow metrics (thousands, currency-free) -> Markdown report: computed table and analysis, plus model commentary kept only if every figure in it is verified (deterministic fallback otherwise) |
 | `GET /api/v1/reports/template.csv` | fixed metrics template (`field,value,description`), opens in Excel |
 | `POST /api/v1/reports/ingest` | raw CSV or XLSX body filled from the template -> validated `fields` + `metrics` (1 MB max; accepts `;` and `,` CSVs and `1.234,5` / `1,234.5` numbers; errors listed per row) |
 | `POST /api/v1/reports/export` | `{markdown, format: "md" \| "pdf", footer}` -> file download; takes the user-edited text, escapes raw HTML and renders the PDF with all network/file fetching disabled |
@@ -136,15 +136,20 @@ Security model:
 - **Traceability.** Every report carries the SHA-256 of the checkpoint that produced it, also exposed by `/health`.
 
 The checkpoint is baked into the image at build time (`--build-arg CHECKPOINT=checkpoints/<file>.pt`, default
-`checkpoints/best_cloud.pt`). Image layers are content-addressed, so `docker load` already verifies their integrity.
+`checkpoints/star-v2.pt`). Image layers are content-addressed, so `docker load` already verifies their integrity.
 
 ## Data
 
 `generate_business_corpus.py` produces five document types: income statements, cash-flow analyses, board minutes,
-KPI dashboards and multi-year DCF projections. Each language uses its own number formatting (`$1,234.5M` vs.
-`$1.234,5 M`). Every document is derived from one internally consistent set of financials, so gross profit, EBITDA,
-FCF, margins, leverage and enterprise value agree with each other inside the text. The corpus is deterministic for a
-given `--seed`. Documents are separated by the special token `<|endoftext|>`.
+KPI dashboards and multi-year DCF projections. Amounts are in thousands with no currency symbol (the currency comes
+from the core banking system and is only a display label, `STAR_CURRENCY_LABEL`); each language uses its own
+separators (`1,234,568` vs. `1.234.568`). Every document is derived from one internally consistent set of financials,
+so gross profit, EBITDA, FCF, margins, leverage and enterprise value agree with each other inside the text. The
+corpus is deterministic for a given `--seed`. Documents are separated by the special token `<|endoftext|>`.
+
+The closing sentence of each cash-flow analysis is chosen by a rule on the figures (net debt/EBITDA > 3x ->
+deleveraging; negative FCF -> working capital; otherwise adequate liquidity), with the three cases balanced, so the
+model learns to condition its commentary on the metrics. `scripts/eval_commentary.py` measures how often it does.
 
 ## Tokenizer: byte-level BPE
 

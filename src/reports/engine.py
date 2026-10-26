@@ -9,9 +9,9 @@ from .verify import filter_unverified
 COMMENTARY_TOKENS = 60  # the corpus commentary is one sentence (~20 tokens)
 
 
-def generate_report(req, complete, model_info):
+def generate_report(req, complete, model_info, currency_label=""):
     """`complete(prompt, max_new_tokens, temperature, seed) -> str` returns the raw continuation."""
-    canonical = build_cash_flow(req)
+    canonical = build_cash_flow(req, currency_label)
     opts = req.generation
     commentary, rejected, attempts = "", [], 0
     for attempt in range(opts.max_attempts):

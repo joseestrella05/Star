@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.reports.formatting import money, num, pct  # noqa: E402
-from src.reports.templates import CASH_FLOW  # noqa: E402
+from src.reports.templates import CASH_FLOW, closing_index  # noqa: E402
 
 EOT = "<|endoftext|>"
 
@@ -42,7 +42,7 @@ TARGETS = ["Brightline Labs", "Meridian Supply", "Kappa Payments", "Altiplano Da
 
 
 def financials(rng):
-    rev = rng.uniform(50, 5000)
+    rev = rng.uniform(50_000, 5_000_000)  # thousands, no currency: the installation sets the label
     growth = rng.gauss(0.08, 0.12)
     cogs = rev * rng.uniform(0.35, 0.65)
     opex = rev * rng.uniform(0.08, 0.25)  # keeps EBITDA margin >= 10%
@@ -110,12 +110,12 @@ def income_statement(rng, lang):
     f, co, per = financials(rng), rng.choice(COMPANIES), period(rng)
     c, m = ctx(f, lang, co, per), (lambda x: money(x, lang))
     if lang == "en":
-        head = f"{co} - Consolidated Income Statement, {per} (USD millions)"
+        head = f"{co} - Consolidated Income Statement, {per} (in thousands)"
         rows = ["Revenue", "Cost of goods sold (COGS)", "Gross profit", "Operating expenses (OPEX)", "EBITDA",
                 "Depreciation and amortization", "EBIT", "Interest expense", "Pre-tax income", "Income tax", "Net income"]
         title = "Management commentary:"
     else:
-        head = f"{co} - Estado de Resultados Consolidado, {per} (millones de USD)"
+        head = f"{co} - Estado de Resultados Consolidado, {per} (en miles)"
         rows = ["Ingresos", "Costo de ventas (COGS)", "Utilidad bruta", "Gastos operativos (OPEX)", "EBITDA",
                 "Depreciación y amortización", "EBIT", "Gastos financieros", "Utilidad antes de impuestos",
                 "Impuesto sobre la renta", "Utilidad neta"]
@@ -127,9 +127,15 @@ def income_statement(rng, lang):
 
 
 def cash_flow(rng, lang):
-    f, co, per = financials(rng), rng.choice(COMPANIES), period(rng)
+    # Closing follows the metrics (same rule as the report fallback), so the model has a mapping to learn.
+    # Natural draws are ~87% "adequate liquidity"; pick the case uniformly, then resample financials to match.
+    target = rng.randrange(3)
+    f = financials(rng)
+    while closing_index(f.net_debt / f.ebitda, f.fcf) != target:
+        f = financials(rng)
+    co, per = rng.choice(COMPANIES), period(rng)
     t = CASH_FLOW[lang]
-    body = [t["title"], "", *t["lines"], rng.choice(t["closings"])]
+    body = [t["title"], "", *t["lines"], t["closings"][target]]
     return "\n".join(body).format(**ctx(f, lang, co, per))
 
 
@@ -150,12 +156,12 @@ def board_minutes(rng, lang):
             f"with an EBITDA margin of {p(f.ebitda / f.rev * 100)}.",
             f"2. CAPEX budget: the Board reviewed a CAPEX plan of {m(f.capex)} with an expected ROI of {p(roi)} "
             f"and a payback period of {num(payback, lang)} years.",
-            f"3. Dividend policy: a dividend of ${num(dividend, lang, 2)} per share was proposed.",
+            f"3. Dividend policy: a dividend of {num(dividend, lang, 2)} per share was proposed.",
             f"4. M&A: management presented the potential acquisition of {target} for {m(price)}.",
         ]
         res = rng.choice([
             f"RESOLVED: the CAPEX budget of {m(f.capex)} is approved.",
-            f"RESOLVED: the dividend of ${num(dividend, lang, 2)} per share is approved, payable next quarter.",
+            f"RESOLVED: the dividend of {num(dividend, lang, 2)} per share is approved, payable next quarter.",
             f"RESOLVED: management is authorized to begin due diligence on {target}.",
         ])
         return (f"Minutes of the Board of Directors Meeting - {co}\nDate: {month} {day}, {year}\n\n"
@@ -167,12 +173,12 @@ def board_minutes(rng, lang):
         f"con un margen EBITDA de {p(f.ebitda / f.rev * 100)}.",
         f"2. Presupuesto de CAPEX: el Consejo revisó un plan de CAPEX de {m(f.capex)} con un ROI esperado de {p(roi)} "
         f"y un periodo de recuperación de {num(payback, lang)} años.",
-        f"3. Política de dividendos: se propuso un dividendo de ${num(dividend, lang, 2)} por acción.",
+        f"3. Política de dividendos: se propuso un dividendo de {num(dividend, lang, 2)} por acción.",
         f"4. Fusiones y adquisiciones: la dirección presentó la posible adquisición de {target} por {m(price)}.",
     ]
     res = rng.choice([
         f"ACUERDO: se aprueba el presupuesto de CAPEX por {m(f.capex)}.",
-        f"ACUERDO: se aprueba el dividendo de ${num(dividend, lang, 2)} por acción, pagadero el próximo trimestre.",
+        f"ACUERDO: se aprueba el dividendo de {num(dividend, lang, 2)} por acción, pagadero el próximo trimestre.",
         f"ACUERDO: se autoriza a la dirección a iniciar la due diligence de {target}.",
     ])
     return (f"Minuta de la Sesión del Consejo de Administración - {co}\nFecha: {day} de {month} de {year}\n\n"

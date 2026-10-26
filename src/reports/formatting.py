@@ -14,9 +14,9 @@ def num(x, lang, d=1):
 
 
 def money(x, lang):
-    """Amounts are in USD millions."""
-    sign = "-" if x < 0 else ""
-    return f"{sign}${num(abs(x), lang)}M" if lang == "en" else f"{sign}${num(abs(x), lang)} M"
+    """Amounts in thousands, without currency: the currency comes from the core banking system and
+    is shown only as a label (STAR_CURRENCY_LABEL), so the model stays currency-agnostic."""
+    return num(x, lang, 0)
 
 
 def pct(x, lang):

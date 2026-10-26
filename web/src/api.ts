@@ -41,6 +41,7 @@ export interface Health {
   device: string;
   params: number;
   checkpoint_sha256: string;
+  currency_label: string;
 }
 
 export class ApiError extends Error {

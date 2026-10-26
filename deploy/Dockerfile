@@ -30,7 +30,7 @@ RUN pip install --upgrade pip \
 
 COPY src/ src/
 COPY --from=web /web/dist web/dist
-ARG CHECKPOINT=checkpoints/best_cloud.pt
+ARG CHECKPOINT=checkpoints/star-v2.pt
 COPY ${CHECKPOINT} model/star.pt
 COPY checkpoints/tokenizer.json model/tokenizer.json
 

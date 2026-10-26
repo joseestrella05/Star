@@ -40,9 +40,9 @@ CASH_FLOW = {
 }
 
 TABLE_LABELS = {
-    "en": ["Metric", "Value", "Revenue", "EBITDA", "Operating cash flow", "CAPEX", "Working capital change",
+    "en": ["Metric", "Revenue", "EBITDA", "Operating cash flow", "CAPEX", "Working capital change",
            "Free cash flow (FCF)", "Cash", "Net debt", "CAPEX intensity", "FCF conversion", "Net debt/EBITDA", "n/a"],
-    "es": ["Métrica", "Valor", "Ingresos", "EBITDA", "Flujo de caja operativo", "CAPEX",
+    "es": ["Métrica", "Ingresos", "EBITDA", "Flujo de caja operativo", "CAPEX",
            "Variación de capital de trabajo", "Flujo de caja libre (FCF)", "Caja", "Deuda neta",
            "Intensidad de CAPEX", "Conversión de FCF", "Deuda neta/EBITDA", "n/d"],
 }
@@ -74,23 +74,31 @@ def _fields(template):
     return {name for _, name, _, _ in Formatter().parse(template) if name}
 
 
-def _fallback_index(m):
-    if m.net_leverage is not None and m.net_leverage > 3:
+def closing_index(net_leverage, free_cash_flow):
+    """Which CASH_FLOW closing fits the metrics. Shared by the corpus generator (so the model learns
+    the mapping) and the report fallback."""
+    if net_leverage is not None and net_leverage > 3:
         return 1  # deleveraging
-    return 0 if m.free_cash_flow >= 0 else 2  # adequate liquidity / working capital normalization
+    return 0 if free_cash_flow >= 0 else 2  # adequate liquidity / working capital normalization
 
 
-def metrics_table(req, c):
+def value_header(lang, currency_label=""):
+    if lang == "es":
+        return f"Valor (miles de {currency_label})" if currency_label else "Valor (miles)"
+    return f"Value (thousands of {currency_label})" if currency_label else "Value (thousands)"
+
+
+def metrics_table(req, c, currency_label=""):
     m, lang = req.metrics, req.language
     lab = TABLE_LABELS[lang]
     rows = [money(m.revenue, lang), c["ebitda"], c["ocf"], c["capex"], c["dwc"], c["fcf"], c["cash"],
             c["net_debt"], c["capex_pct"], c["conv"] or lab[-1], c["lev"] or lab[-1]]
-    lines = [f"| {lab[0]} | {lab[1]} |", "|---|---:|"]
-    lines += [f"| {name} | {value} |" for name, value in zip(lab[2:-1], rows)]
+    lines = [f"| {lab[0]} | {value_header(lang, currency_label)} |", "|---|---:|"]
+    lines += [f"| {name} | {value} |" for name, value in zip(lab[1:-1], rows)]
     return "\n".join(lines)
 
 
-def build_cash_flow(req):
+def build_cash_flow(req, currency_label=""):
     t, c = CASH_FLOW[req.language], _context(req)
     title = t["title"].format(**c)
     # Ratios are undefined when EBITDA <= 0: drop the sentences that need them instead of printing "None".
@@ -99,6 +107,6 @@ def build_cash_flow(req):
         title=title,
         body=body,
         prompt=f"{title}\n\n{body}\n",
-        fallback=t["closings"][_fallback_index(req.metrics)],
-        table=metrics_table(req, c),
+        fallback=t["closings"][closing_index(req.metrics.net_leverage, req.metrics.free_cash_flow)],
+        table=metrics_table(req, c, currency_label),
     )

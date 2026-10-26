@@ -23,21 +23,21 @@ def scripted(*replies):
 
 def test_accepts_verified_commentary():
     req = ReportRequest(**PAYLOAD)
-    r = generate_report(req, scripted(" Free cash flow of $150.0M covers CAPEX.\n<junk on next line $9M>"), INFO)
+    r = generate_report(req, scripted(" Free cash flow of 150 covers CAPEX.\n<junk on next line 9>"), INFO)
     assert r.verification.passed and r.verification.attempts == 1
     commentary = r.sections[-1]
-    assert commentary.source == "model" and commentary.markdown == "Free cash flow of $150.0M covers CAPEX."
-    assert r.markdown.startswith("# Atlas Logistics - Cash Flow Analysis, Q2 2026\n\n| Metric | Value |")
+    assert commentary.source == "model" and commentary.markdown == "Free cash flow of 150 covers CAPEX."
+    assert r.markdown.startswith("# Atlas Logistics - Cash Flow Analysis, Q2 2026\n\n| Metric | Value (thousands) |")
     assert [s.source for s in r.sections] == ["computed", "computed", "computed", "model"]
 
 
 def test_retries_then_falls_back_with_seeds():
     req = ReportRequest(**{**PAYLOAD, "generation": {"max_attempts": 2, "seed": 10}})
-    fake = scripted(" Revenue grew 45% YoY.", " Net debt fell to $12.0M.")
+    fake = scripted(" Revenue grew 45% YoY.", " Net debt fell to 12.0.")
     r = generate_report(req, fake, INFO)
     assert fake.calls == [10, 11]
     assert not r.verification.passed and r.verification.attempts == 2
-    assert r.verification.rejected_figures == ["45%", "$12.0M"]
+    assert r.verification.rejected_figures == ["45%", "12.0"]
     assert r.sections[-1].source == "fallback"
     assert "Liquidity remains adequate" in r.markdown
 
@@ -49,5 +49,5 @@ def test_endpoint_with_real_tiny_model():
         assert resp.status_code == 200
         assert body["model"] == {"checkpoint_sha256": "abc", "params": MODEL.num_params(non_embedding=False)}
         assert body["request"]["metrics"]["free_cash_flow"] == "150"
-        assert "$150.0M" in body["markdown"]
+        assert "| Free cash flow (FCF) | 150 |" in body["markdown"]
         assert c.post("/api/v1/reports/generate", json={**PAYLOAD, "period": "2026"}).status_code == 422

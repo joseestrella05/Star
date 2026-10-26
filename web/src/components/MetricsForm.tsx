@@ -47,7 +47,7 @@ function ratioPreview(raw: FormState["metrics"]) {
   const ebitda = n("ebitda");
   const fmt = (x: number, d = 1) => x.toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d });
   return [
-    ["FCF", `$${fmt(fcf)} M`],
+    ["FCF", fmt(fcf, 0)],
     ["Conversión de FCF", ebitda > 0 ? `${fmt((fcf / ebitda) * 100)}%` : "n/d"],
     ["Deuda neta/EBITDA", ebitda > 0 ? `${fmt(n("net_debt") / ebitda)}x` : "n/d"],
     ["Intensidad de CAPEX", n("revenue") > 0 ? `${fmt((n("capex") / n("revenue")) * 100)}%` : "n/d"],
@@ -58,10 +58,12 @@ export function MetricsForm({
   form,
   onChange,
   errors,
+  currencyLabel,
 }: {
   form: FormState;
   onChange: (f: FormState) => void;
   errors: Partial<Record<string, string>>;
+  currencyLabel: string;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [upload, setUpload] = useState<{ busy: boolean; messages: string[]; ok?: string }>({ busy: false, messages: [] });
@@ -108,7 +110,7 @@ export function MetricsForm({
         </div>
       </Card>
 
-      <Card title="Métricas" aside={<span className="text-xs text-muted">Millones de USD</span>}>
+      <Card title="Métricas" aside={<span className="text-xs text-muted">{currencyLabel ? `Miles de ${currencyLabel}` : "En miles"}</span>}>
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
