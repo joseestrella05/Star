@@ -95,6 +95,8 @@ export function ReportPreview({
           <p>
             Verificación: {report.verification.attempts} intento(s)
             {report.verification.rejected_figures.length > 0 && ` · cifras descartadas: ${report.verification.rejected_figures.join(", ")}`}
+            {report.verification.rejected_commentary.length > 0 &&
+              ` · ${report.verification.rejected_commentary.length} comentario(s) descartado(s) por contradecir las métricas`}
           </p>
         </footer>
       </article>

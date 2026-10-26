@@ -57,14 +57,17 @@ def main():
         commentary = report.sections[-1]
         expected = CASH_FLOW[lang]["closings"][target]
         stats["verified"] += report.verification.passed
+        stats["published_correct"] += commentary.markdown == expected  # model or fallback: what the client reads
         stats[f"correct_{target}"] += commentary.source == "model" and commentary.markdown == expected
         stats[f"total_{target}"] += 1
 
     n = args.samples
     correct = sum(stats[f"correct_{t}"] for t in range(3))
     print(f"samples: {n}")
-    print(f"commentary passed figure verification: {stats['verified']}/{n} ({stats['verified'] / n:.0%})")
-    print(f"closing matches the metrics:           {correct}/{n} ({correct / n:.0%}; chance = 33%)")
+    print(f"model closing matches the metrics:     {correct}/{n} ({correct / n:.0%}; chance = 33%)")
+    print(f"model closing accepted (figures+rule): {stats['verified']}/{n} ({stats['verified'] / n:.0%})")
+    print(f"published closing correct (w/ guard):  {stats['published_correct']}/{n} "
+          f"({stats['published_correct'] / n:.0%})")
     names = ["adequate liquidity", "deleveraging", "working capital"]
     for t in range(3):
         print(f"  {names[t]:<20} {stats[f'correct_{t}']}/{stats[f'total_{t}']}")

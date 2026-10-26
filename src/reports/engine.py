@@ -46,7 +46,7 @@ def generate_report(req, complete, model_info, currency_label=""):
         return generate_credit_report(req, model_info, currency_label)
     canonical = build_cash_flow(req, currency_label)
     opts = req.generation
-    commentary, rejected, attempts = "", [], 0
+    commentary, rejected, contradicted, attempts = "", [], [], 0
     for attempt in range(opts.max_attempts):
         attempts += 1
         seed = None if opts.seed is None else opts.seed + attempt
@@ -54,9 +54,14 @@ def generate_report(req, complete, model_info, currency_label=""):
         first_line = text.strip().split("\n", 1)[0]  # commentary is a single line in the corpus layout
         kept, bad = filter_unverified(first_line, canonical.prompt)
         rejected.extend(bad)
-        if kept and not bad:
-            commentary = kept
-            break
+        if not kept or bad:
+            continue
+        # Correct figures are not enough: the closing must be the one the metrics call for.
+        if kept != canonical.fallback:
+            contradicted.append(kept)
+            continue
+        commentary = kept
+        break
     source = "model" if commentary else "fallback"
     commentary = commentary or canonical.fallback
 
@@ -66,5 +71,5 @@ def generate_report(req, complete, model_info, currency_label=""):
         ReportSection(key="analysis", markdown=canonical.body.replace("\n", " "), source="computed"),
         ReportSection(key="commentary", markdown=commentary, source=source),
     ]
-    return _response(req, sections, Verification(passed=source == "model", attempts=attempts,
-                                                 rejected_figures=rejected), model_info)
+    return _response(req, sections, Verification(passed=source == "model", attempts=attempts, rejected_figures=rejected,
+                                                 rejected_commentary=contradicted), model_info)

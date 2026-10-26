@@ -159,6 +159,8 @@ class Verification(BaseModel):
     passed: bool
     attempts: int
     rejected_figures: List[str]
+    rejected_commentary: List[str] = Field(
+        default_factory=list, description="model closings with correct figures that contradicted the metrics")
 
 
 class ModelInfo(BaseModel):

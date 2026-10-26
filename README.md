@@ -76,7 +76,7 @@ curl -s localhost:8000/generate -H 'content-type: application/json' -d '{
 | Endpoint | Description |
 |---|---|
 | `GET /health` | device, parameter count, model config and checkpoint SHA-256 |
-| `POST /api/v1/reports/generate` | typed cash-flow metrics (thousands, currency-free) -> Markdown report: computed table and analysis, plus model commentary kept only if every figure in it is verified (deterministic fallback otherwise) |
+| `POST /api/v1/reports/generate` | typed cash-flow metrics (thousands, currency-free) -> Markdown report: computed table and analysis, plus model commentary kept only if every figure in it is verified and its closing matches the metric rule (otherwise retried, then deterministic fallback; contradicting closings are listed in `verification.rejected_commentary`) |
 | `POST /api/v1/reports/generate` with `report_type: "credit_analysis"` | corporate credit analysis for the credit committee (fully deterministic, no model text): payment capacity, DSCR, post-loan leverage, haircut-adjusted collateral coverage, criteria table and a rule-based opinion (favorable / with conditions / unfavorable) with conditions, reasons and a counteroffer; the applied policy is echoed in the response |
 | `GET /api/v1/reports/template.csv` | fixed metrics template (`field,value,description`), opens in Excel |
 | `POST /api/v1/reports/ingest` | raw CSV or XLSX body filled from the template -> validated `fields` + `metrics` (1 MB max; accepts `;` and `,` CSVs and `1.234,5` / `1,234.5` numbers; errors listed per row) |

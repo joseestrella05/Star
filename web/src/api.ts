@@ -32,7 +32,7 @@ export interface ReportResponse {
   created_at: string;
   markdown: string;
   sections: Section[];
-  verification: { passed: boolean; attempts: number; rejected_figures: string[] };
+  verification: { passed: boolean; attempts: number; rejected_figures: string[]; rejected_commentary: string[] };
   model: { checkpoint_sha256: string; params: number };
 }
 

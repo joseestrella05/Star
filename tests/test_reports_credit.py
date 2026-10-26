@@ -180,6 +180,6 @@ def test_endpoint_never_calls_the_model():
         body = c.post("/api/v1/reports/generate", json=credit().model_dump(mode="json")).json()
     assert [s["key"] for s in body["sections"]] == ["header", "table", "analysis", "criteria", "opinion"]
     assert {s["source"] for s in body["sections"]} == {"computed"}
-    assert body["verification"] == {"passed": True, "attempts": 0, "rejected_figures": []}
+    assert body["verification"] == {"passed": True, "attempts": 0, "rejected_figures": [], "rejected_commentary": []}
     assert body["policy"]["min_dscr"] == "1.25" and body["policy"]["haircuts"]["mortgage"] == "0.30"
     assert "**Dictamen: FAVORABLE.**" in body["markdown"]
