@@ -6,6 +6,7 @@ built here is indistinguishable from training data.
 from dataclasses import dataclass
 from string import Formatter
 
+from .credit import DEFAULT_POLICY, CreditAssessment, assess
 from .formatting import money, num, pct
 
 CASH_FLOW = {
@@ -110,3 +111,169 @@ def build_cash_flow(req, currency_label=""):
         fallback=t["closings"][closing_index(req.metrics.net_leverage, req.metrics.free_cash_flow)],
         table=metrics_table(req, c, currency_label),
     )
+
+
+# --- Corporate credit analysis (credit committee opinion) -------------------------------------------------
+
+CREDIT = {
+    "en": {
+        "title": "{co} - Credit Analysis, {per}",
+        "rows": ["Revenue", "EBITDA", "Operating cash flow", "Maintenance CAPEX", "Existing financial debt", "Cash",
+                 "Existing annual debt service", "Requested amount", "Annual rate", "Term (months)",
+                 "Collateral (adjusted value)"],
+        "analysis": {
+            "cfads": "Cash flow available for debt service (CFADS) is {cfads}: operating cash flow of {ocf} less "
+                     "maintenance CAPEX of {capex}.",
+            "service": "The requested facility of {amount} at {rate} over {term} months carries an annual debt "
+                       "service of {new_service}, which together with the existing {existing} totals {total_service}.",
+            "dscr": "The resulting debt service coverage ratio (DSCR) is {dscr}, leaving a headroom of {headroom}.",
+            "leverage": "After disbursement, leverage would be {lev} net debt/EBITDA.",
+            "no_leverage": "EBITDA is not positive, so leverage cannot be computed.",
+            "collateral": "Collateral offered ({n_collateral}) has an adjusted value of {adjusted}, a coverage of "
+                          "{coverage} over the requested amount.",
+            "gap": "An additional {gap} of adjusted collateral is needed to reach {min_cov}.",
+            "capacity": "Maximum payment capacity at the requested rate and term, keeping a DSCR of {min_dscr}, "
+                        "is {max_loan}.",
+        },
+        "criteria_head": "| Criterion | Value | Threshold | Met |",
+        "criteria": {"dscr": "DSCR", "leverage": "Net debt/EBITDA after loan", "coverage": "Collateral coverage"},
+        "yes_no": ("Yes", "No"),
+        "limits": ("min.", "max."),
+        "decision": {
+            "favorable": "**Opinion: FAVORABLE.** The facility meets every criterion of the credit policy.",
+            "conditional": "**Opinion: FAVORABLE WITH CONDITIONS.** Approval is recommended subject to:",
+            "unfavorable": "**Opinion: UNFAVORABLE.** The facility breaches hard limits of the credit policy:",
+        },
+        "conditions": {
+            "reduce_amount": "Reduce the amount to at most {max_loan} to reach a DSCR of {min_dscr}.",
+            "restructure_debt": "Restructure existing debt: current debt service leaves no capacity for new debt "
+                                "at a DSCR of {min_dscr}.",
+            "add_collateral": "Provide additional collateral with an adjusted value of at least {gap}.",
+            "leverage_covenant": "Leverage covenant: net debt/EBITDA no higher than {max_lev}, tested quarterly.",
+        },
+        "reasons": {
+            "dscr": "DSCR of {dscr} is below the minimum of {hard_min_dscr}: cash flow does not cover debt service.",
+            "leverage": "Leverage of {lev} exceeds the maximum of {hard_max_lev}.",
+            "no_ebitda": "EBITDA is not positive.",
+        },
+        "counteroffer": "Alternative: a facility of up to {max_loan} at the same rate and term would meet the "
+                        "minimum DSCR of {min_dscr}.",
+        "signoff": "Opinion produced by the credit policy rules; it requires review and signature by the credit "
+                   "committee.",
+    },
+    "es": {
+        "title": "{co} - Análisis de Crédito, {per}",
+        "rows": ["Ingresos", "EBITDA", "Flujo de caja operativo", "CAPEX de mantenimiento", "Deuda financiera actual",
+                 "Caja", "Servicio de deuda actual (anual)", "Monto solicitado", "Tasa anual", "Plazo (meses)",
+                 "Garantías (valor ajustado)"],
+        "analysis": {
+            "cfads": "El flujo disponible para el servicio de deuda (CFADS) es de {cfads}: flujo de caja operativo de "
+                     "{ocf} menos CAPEX de mantenimiento de {capex}.",
+            "service": "La operación solicitada de {amount} a una tasa de {rate} y {term} meses genera un servicio de "
+                       "deuda anual de {new_service}, que sumado al servicio actual de {existing} totaliza "
+                       "{total_service}.",
+            "dscr": "La cobertura del servicio de deuda (DSCR) resultante es de {dscr}, con un margen de {headroom}.",
+            "leverage": "Tras el desembolso, el apalancamiento sería de {lev} deuda neta/EBITDA.",
+            "no_leverage": "El EBITDA no es positivo, por lo que el apalancamiento no es calculable.",
+            "collateral": "Las garantías ofrecidas ({n_collateral}) suman un valor ajustado de {adjusted}, con una "
+                          "cobertura de {coverage} sobre el monto solicitado.",
+            "gap": "Faltan {gap} de valor ajustado en garantías para alcanzar {min_cov}.",
+            "capacity": "La capacidad de pago máxima a la tasa y plazo solicitados, manteniendo un DSCR de "
+                        "{min_dscr}, es de {max_loan}.",
+        },
+        "criteria_head": "| Criterio | Valor | Umbral | Cumple |",
+        "criteria": {"dscr": "DSCR", "leverage": "Deuda neta/EBITDA tras el crédito",
+                     "coverage": "Cobertura de garantías"},
+        "yes_no": ("Sí", "No"),
+        "limits": ("mín.", "máx."),
+        "decision": {
+            "favorable": "**Dictamen: FAVORABLE.** La operación cumple todos los criterios de la política de crédito.",
+            "conditional": "**Dictamen: FAVORABLE CON CONDICIONES.** Se recomienda aprobar sujeto a:",
+            "unfavorable": "**Dictamen: DESFAVORABLE.** La operación incumple límites de la política de crédito:",
+        },
+        "conditions": {
+            "reduce_amount": "Reducir el monto a un máximo de {max_loan} para alcanzar un DSCR de {min_dscr}.",
+            "restructure_debt": "Reestructurar la deuda existente: el servicio actual no deja capacidad para deuda "
+                                "nueva con un DSCR de {min_dscr}.",
+            "add_collateral": "Constituir garantías adicionales con un valor ajustado de al menos {gap}.",
+            "leverage_covenant": "Covenant de apalancamiento: deuda neta/EBITDA no mayor a {max_lev}, medido "
+                                 "trimestralmente.",
+        },
+        "reasons": {
+            "dscr": "El DSCR de {dscr} está por debajo del mínimo de {hard_min_dscr}: el flujo no cubre el servicio "
+                    "de deuda.",
+            "leverage": "El apalancamiento de {lev} supera el máximo de {hard_max_lev}.",
+            "no_ebitda": "El EBITDA no es positivo.",
+        },
+        "counteroffer": "Alternativa: una operación de hasta {max_loan} a la misma tasa y plazo cumpliría el DSCR "
+                        "mínimo de {min_dscr}.",
+        "signoff": "Dictamen generado por las reglas de la política de crédito; requiere revisión y firma del "
+                   "comité de crédito.",
+    },
+}
+
+
+@dataclass
+class CreditReport:
+    title: str
+    table: str
+    analysis: str
+    criteria: str
+    opinion: str
+    assessment: CreditAssessment
+
+
+def _ratio(x, lang, d=2):
+    return num(x, lang, d) + "x"
+
+
+def build_credit(req, currency_label="", policy=DEFAULT_POLICY):
+    a, f, fac, lang, t = assess(req, policy), req.financials, req.facility, req.language, CREDIT[req.language]
+    m = lambda x: money(x, lang)  # noqa: E731
+    c = dict(
+        co=req.company_name, per=req.period, cfads=m(a.cfads), ocf=m(f.operating_cash_flow),
+        capex=m(f.maintenance_capex), amount=m(fac.amount), rate=num(fac.annual_rate_pct, lang, 2) + "%",
+        term=str(fac.term_months), new_service=m(a.new_debt_service), existing=m(f.existing_debt_service),
+        total_service=m(a.total_debt_service), dscr=_ratio(a.dscr, lang), headroom=m(a.headroom),
+        lev=None if a.leverage_after is None else _ratio(a.leverage_after, lang, 1), adjusted=m(a.adjusted_collateral),
+        n_collateral=str(len(req.collateral)), coverage=_ratio(a.coverage, lang), gap=m(a.collateral_gap),
+        max_loan=m(a.max_loan), min_dscr=_ratio(policy.min_dscr, lang), hard_min_dscr=_ratio(policy.hard_min_dscr, lang),
+        max_lev=_ratio(policy.max_leverage, lang, 1), hard_max_lev=_ratio(policy.hard_max_leverage, lang, 1),
+        min_cov=_ratio(policy.min_coverage, lang),
+    )
+    title = t["title"].format(**c)
+
+    values = [m(f.revenue), m(f.ebitda), c["ocf"], c["capex"], m(f.total_debt), m(f.cash), c["existing"],
+              c["amount"], c["rate"], c["term"], c["adjusted"]]
+    table = "\n".join([f"| {TABLE_LABELS[lang][0]} | {value_header(lang, currency_label)} |", "|---|---:|"]
+                      + [f"| {r} | {v} |" for r, v in zip(t["rows"], values)])
+
+    s = t["analysis"]
+    sentences = [s["cfads"], s["service"], s["dscr"], s["leverage"] if c["lev"] else s["no_leverage"],
+                 s["collateral"]] + ([s["gap"]] if a.collateral_gap > 0 else []) + [s["capacity"]]
+    analysis = " ".join(x.format(**c) for x in sentences)
+
+    # Both limits are shown so every threshold the opinion cites is traceable to this table.
+    lo, hi = t["limits"]
+    shown = {
+        "dscr": (c["dscr"], f"≥ {c['min_dscr']} ({lo} {c['hard_min_dscr']})"),
+        "leverage": (c["lev"] or TABLE_LABELS[lang][-1], f"≤ {c['max_lev']} ({hi} {c['hard_max_lev']})"),
+        "coverage": (c["coverage"], f"≥ {c['min_cov']}"),
+    }
+    yes, no = t["yes_no"]
+    criteria = "\n".join([t["criteria_head"], "|---|---:|---:|:---:|"] + [
+        f"| {t['criteria'][k.key]} | {shown[k.key][0]} | {shown[k.key][1]} | {yes if k.passed else no} |"
+        for k in a.criteria])
+
+    lines = [t["decision"][a.decision]]
+    if a.decision == "conditional":
+        lines += [f"- {t['conditions'][k].format(**c)}" for k in a.conditions]
+    elif a.decision == "unfavorable":
+        for k in a.criteria:
+            if k.hard_fail:
+                reason = "no_ebitda" if k.key == "leverage" and a.leverage_after is None else k.key
+                lines.append(f"- {t['reasons'][reason].format(**c)}")
+        if a.max_loan > 0:
+            lines.append("\n" + t["counteroffer"].format(**c))
+    opinion = "\n".join(lines) + f"\n\n_{t['signoff']}_"
+    return CreditReport(title, table, analysis, criteria, opinion, a)

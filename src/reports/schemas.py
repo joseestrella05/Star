@@ -5,10 +5,10 @@ that reaches the report without verification.
 """
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, computed_field, model_validator
 
 Strict = ConfigDict(extra="forbid")
 
@@ -64,16 +64,81 @@ class GenerationOptions(BaseModel):
     seed: Optional[int] = Field(None, description="fixed seed for reproducible, auditable output")
 
 
-class ReportRequest(BaseModel):
+# Letters, digits, spaces and basic punctuation only: no markup or special tokens reach a prompt or a PDF.
+SAFE_TEXT = r"^[\w .,&'()-]+$"
+
+
+class _ReportBase(BaseModel):
     model_config = Strict
 
-    report_type: Literal["cash_flow"] = "cash_flow"
-    # Letters, digits, spaces and basic punctuation only: no markup or special tokens reach the prompt.
-    company_name: str = Field(min_length=2, max_length=80, pattern=r"^[\w .,&'()-]+$")
+    company_name: str = Field(min_length=2, max_length=80, pattern=SAFE_TEXT)
     period: str = Field(pattern=r"^Q[1-4] 20\d{2}$", examples=["Q2 2026"])
     language: Literal["es", "en"] = "es"
+
+
+class ReportRequest(_ReportBase):
+    """Cash-flow analysis: computed figures plus model commentary."""
+    report_type: Literal["cash_flow"] = "cash_flow"
     metrics: CashFlowMetrics
     generation: GenerationOptions = Field(default_factory=GenerationOptions)
+
+
+class CreditFinancials(BaseModel):
+    """Borrower's last-twelve-months figures, in thousands."""
+    model_config = Strict
+
+    revenue: Decimal = _amount(gt=0)
+    ebitda: Decimal = _amount()
+    operating_cash_flow: Decimal = _amount(description="after taxes")
+    maintenance_capex: Decimal = _amount(ge=0)
+    total_debt: Decimal = _amount(ge=0, description="existing financial debt")
+    cash: Decimal = _amount(ge=0)
+    existing_debt_service: Decimal = _amount(ge=0, description="annual principal + interest on existing debt")
+
+    @model_validator(mode="after")
+    def check_consistency(self):
+        if self.ebitda > self.revenue:
+            raise ValueError("ebitda cannot exceed revenue")
+        return self
+
+
+class CreditFacility(BaseModel):
+    """Requested loan, repaid in equal monthly installments (French amortization)."""
+    model_config = Strict
+
+    amount: Decimal = _amount(gt=0)
+    annual_rate_pct: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
+    term_months: int = Field(ge=1, le=360)
+
+
+CollateralType = Literal["mortgage", "pledge", "cash_deposit", "personal_guarantee"]
+
+
+class Collateral(BaseModel):
+    model_config = Strict
+
+    type: CollateralType
+    description: str = Field(min_length=2, max_length=80, pattern=SAFE_TEXT)
+    appraised_value: Decimal = _amount(ge=0)
+
+
+class CreditAnalysisRequest(_ReportBase):
+    """Corporate credit analysis for the credit committee. Fully deterministic: no model text."""
+    report_type: Literal["credit_analysis"]
+    financials: CreditFinancials
+    facility: CreditFacility
+    collateral: List[Collateral] = Field(default_factory=list, max_length=20)
+
+
+def _report_kind(value):
+    kind = value.get("report_type") if isinstance(value, dict) else getattr(value, "report_type", None)
+    return kind or "cash_flow"  # requests predating report types are cash-flow reports
+
+
+AnyReportRequest = Annotated[
+    Union[Annotated[ReportRequest, Tag("cash_flow")], Annotated[CreditAnalysisRequest, Tag("credit_analysis")]],
+    Discriminator(_report_kind),
+]
 
 
 class ExportRequest(BaseModel):
@@ -85,7 +150,7 @@ class ExportRequest(BaseModel):
 
 
 class ReportSection(BaseModel):
-    key: Literal["header", "table", "analysis", "commentary"]
+    key: Literal["header", "table", "analysis", "commentary", "criteria", "opinion"]
     markdown: str
     source: Literal["computed", "model", "fallback"]
 
@@ -104,8 +169,9 @@ class ModelInfo(BaseModel):
 class ReportResponse(BaseModel):
     report_id: UUID
     created_at: datetime
-    request: ReportRequest
+    request: AnyReportRequest
     markdown: str
     sections: List[ReportSection]
     verification: Verification
     model: ModelInfo
+    policy: Optional[Dict[str, Any]] = Field(None, description="credit policy thresholds applied (credit analysis)")

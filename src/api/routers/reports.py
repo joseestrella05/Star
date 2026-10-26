@@ -3,13 +3,13 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from src.reports.engine import generate_report
 from src.reports.export import to_pdf
 from src.reports.ingest import MAX_BYTES, IngestError, parse_upload, template_csv
-from src.reports.schemas import ExportRequest, ModelInfo, ReportRequest, ReportResponse
+from src.reports.schemas import AnyReportRequest, ExportRequest, ModelInfo, ReportResponse
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
 
 @router.post("/generate", response_model=ReportResponse)
-def generate(req: ReportRequest, request: Request):  # sync def: runs in a worker thread
+def generate(req: AnyReportRequest, request: Request):  # sync def: runs in a worker thread
     star = request.app.state.star
     info = ModelInfo(checkpoint_sha256=star["checkpoint_sha256"],
                      params=star["model"].num_params(non_embedding=False))
