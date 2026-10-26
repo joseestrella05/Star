@@ -21,8 +21,10 @@ export interface ReportRequest {
   generation?: { temperature?: number; max_attempts?: number; seed?: number | null };
 }
 
+export type CollateralType = "mortgage" | "pledge" | "cash_deposit" | "personal_guarantee";
+
 export interface Section {
-  key: "header" | "table" | "analysis" | "commentary";
+  key: "header" | "table" | "analysis" | "commentary" | "criteria" | "opinion";
   markdown: string;
   source: Source;
 }
@@ -34,6 +36,17 @@ export interface ReportResponse {
   sections: Section[];
   verification: { passed: boolean; attempts: number; rejected_figures: string[]; rejected_commentary: string[] };
   model: { checkpoint_sha256: string; params: number };
+  policy?: Record<string, unknown>;
+}
+
+export interface CreditAnalysisRequest {
+  report_type: "credit_analysis";
+  company_name: string;
+  period: string;
+  language: Lang;
+  financials: Record<string, string>;
+  facility: { amount: string; annual_rate_pct: string; term_months: number };
+  collateral: { type: CollateralType; description: string; appraised_value: string }[];
 }
 
 export interface Health {
@@ -78,7 +91,7 @@ const jsonInit = (body: unknown): RequestInit => ({
 
 export const api = {
   health: () => request<Health>("/health"),
-  generate: (req: ReportRequest) => request<ReportResponse>("/api/v1/reports/generate", jsonInit(req)),
+  generate: (req: ReportRequest | CreditAnalysisRequest) => request<ReportResponse>("/api/v1/reports/generate", jsonInit(req)),
   ingest: (file: File) =>
     request<{ fields: Partial<Pick<ReportRequest, "company_name" | "period" | "language">>; metrics: Record<string, string> }>(
       "/api/v1/reports/ingest",

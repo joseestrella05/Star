@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, type Health, type ReportResponse } from "./api";
 import { MetricsForm, normalizeMetrics, validate, type FormState } from "./components/MetricsForm";
+import { buildCreditRequest, CreditForm, EMPTY_CREDIT, validateCredit, type CreditFormState } from "./components/CreditForm";
 import { exportMarkdown, footerText, ReportPreview } from "./components/ReportPreview";
 import { Badge, Button } from "./components/ui";
 
@@ -18,9 +19,13 @@ function download(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+type ReportType = "cash_flow" | "credit_analysis";
+
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
+  const [reportType, setReportType] = useState<ReportType>("cash_flow");
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [creditForm, setCreditForm] = useState<CreditFormState>(EMPTY_CREDIT);
   const [touched, setTouched] = useState(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [commentary, setCommentary] = useState("");
@@ -32,17 +37,29 @@ export default function App() {
     api.health().then(setHealth).catch(() => setHealth(null));
   }, []);
 
-  const fieldErrors = touched ? validate(form) : {};
+  function switchType(t: ReportType) {
+    setReportType(t);
+    setReport(null);
+    setCommentary("");
+    setTouched(false);
+    setErrors([]);
+  }
+
+  const fieldErrors = (touched ? (reportType === "cash_flow" ? validate(form) : validateCredit(creditForm)) : {}) as Record<string, string>;
 
   async function generate() {
     setTouched(true);
-    if (Object.keys(validate(form)).length) return;
+    const errs = reportType === "cash_flow" ? validate(form) : validateCredit(creditForm);
+    if (Object.keys(errs).length) return;
     setBusy(true);
     setErrors([]);
     try {
-      const r = await api.generate({ ...form, metrics: normalizeMetrics(form.metrics) });
+      const req = reportType === "cash_flow"
+        ? { ...form, metrics: normalizeMetrics(form.metrics) }
+        : buildCreditRequest(creditForm);
+      const r = await api.generate(req);
       setReport(r);
-      setCommentary(r.sections.find((s) => s.key === "commentary")!.markdown);
+      setCommentary(r.sections.find((s) => s.key === "commentary")?.markdown ?? "");
     } catch (e) {
       setErrors(e instanceof ApiError ? e.messages : ["No se pudo conectar con el servidor"]);
     } finally {
@@ -73,8 +90,17 @@ export default function App() {
             <span className="grid size-8 place-items-center rounded-lg bg-brand text-sm font-bold text-white">S</span>
             <div>
               <h1 className="text-sm font-semibold leading-tight">Star</h1>
-              <p className="text-xs text-muted">Análisis de flujo de caja · on-premise</p>
+              <p className="text-xs text-muted">{reportType === "cash_flow" ? "Flujo de caja" : "Análisis de crédito"} · on-premise</p>
             </div>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border border-line bg-slate-50 p-1">
+            {(["cash_flow", "credit_analysis"] as const).map((t) => (
+              <button key={t} type="button"
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${reportType === t ? "bg-white shadow-sm text-ink" : "text-muted hover:text-ink"}`}
+                onClick={() => switchType(t)}>
+                {t === "cash_flow" ? "Flujo de caja" : "Análisis de crédito"}
+              </button>
+            ))}
           </div>
           {health ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -91,9 +117,13 @@ export default function App() {
 
       <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-2">
         <div className="space-y-5">
-          <MetricsForm form={form} onChange={setForm} errors={fieldErrors} currencyLabel={health?.currency_label ?? ""} />
+          {reportType === "cash_flow" ? (
+            <MetricsForm form={form} onChange={setForm} errors={fieldErrors} currencyLabel={health?.currency_label ?? ""} />
+          ) : (
+            <CreditForm form={creditForm} onChange={setCreditForm} errors={fieldErrors} currencyLabel={health?.currency_label ?? ""} />
+          )}
           <Button className="w-full" onClick={generate} disabled={busy}>
-            {busy ? "Generando informe…" : "Generar informe"}
+            {busy ? "Generando informe…" : reportType === "cash_flow" ? "Generar informe" : "Analizar solicitud"}
           </Button>
         </div>
 
