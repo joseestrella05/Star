@@ -49,7 +49,7 @@ export function ReportPreview({
           <Button variant="secondary" disabled={!!exporting} onClick={() => onExport("md")}>
             {exporting === "md" ? "Exportando…" : "Markdown"}
           </Button>
-          <Button disabled={!!exporting || !commentary.trim()} onClick={() => onExport("pdf")}>
+          <Button disabled={!!exporting || (!opinionSec && !commentary.trim())} onClick={() => onExport("pdf")}>
             {exporting === "pdf" ? "Generando PDF…" : "Descargar PDF"}
           </Button>
         </div>
